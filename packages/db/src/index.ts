@@ -20,7 +20,25 @@ export function createDb(d1: D1Database): Db {
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
 
-// ── Пользователи ───────────────────────────────────────────────
+// ── Дедуп апдейтов ───────────────────────────────────────────────────
+
+/**
+ * Забрать апдейт себе. true — обрабатываем первый раз, false — дубль.
+ *
+ * INSERT ... ON CONFLICT DO NOTHING атомарен, поэтому два одновременных
+ * вызова не могут оба получить true. Проверка через SELECT была бы гонкой.
+ */
+export async function claimUpdate(db: Db, updateId: number): Promise<boolean> {
+	const inserted = await db
+		.insert(schema.processedUpdates)
+		.values({ updateId })
+		.onConflictDoNothing()
+		.returning({ updateId: schema.processedUpdates.updateId })
+
+	return inserted.length > 0
+}
+
+// ── Пользователи ────────────────────────────────────────────────────
 
 /**
  * Завести или обновить пользователя. Вызывается на каждом апдейте.
@@ -67,7 +85,23 @@ export async function upsertUser(
 	return user!
 }
 
-// ── Сессии ─────────────────────────────────────────────────────
+export async function setUserLocale(
+	db: Db,
+	userId: number,
+	locale: "ru" | "en",
+): Promise<void> {
+	await db.update(schema.users).set({ locale }).where(eq(schema.users.id, userId))
+}
+
+export async function setHomeIata(
+	db: Db,
+	userId: number,
+	homeIata: string,
+): Promise<void> {
+	await db.update(schema.users).set({ homeIata }).where(eq(schema.users.id, userId))
+}
+
+// ── Сессии ──────────────────────────────────────────────────────────
 
 /**
  * StorageAdapter для grammY поверх D1.
@@ -112,7 +146,7 @@ export function createD1SessionStorage(db: Db) {
 	}
 }
 
-// ── Доступ и квоты ─────────────────────────────────────────────
+// ── Доступ и квоты ──────────────────────────────────────────────────
 
 /** Есть ли активный Plus прямо сейчас. */
 export async function isPremium(db: Db, userId: number): Promise<boolean> {
@@ -123,26 +157,11 @@ export async function isPremium(db: Db, userId: number): Promise<boolean> {
 			and(
 				eq(schema.entitlements.userId, userId),
 				gt(schema.entitlements.expiresAt, nowSeconds()),
-				eq(schema.entitlements.source, "payment"),
 			),
 		)
 		.limit(1)
 
-	if (row) return true
-
-	const [granted] = await db
-		.select({ id: schema.entitlements.id })
-		.from(schema.entitlements)
-		.where(
-			and(
-				eq(schema.entitlements.userId, userId),
-				gt(schema.entitlements.expiresAt, nowSeconds()),
-				eq(schema.entitlements.source, "grant"),
-			),
-		)
-		.limit(1)
-
-	return Boolean(granted)
+	return Boolean(row)
 }
 
 /** Выдать доступ. Если активный уже есть — продлеваем от его конца, а не от сейчас. */
@@ -218,4 +237,10 @@ export async function pruneStaleRows(db: Db): Promise<void> {
 
 	const cutoffSession = nowSeconds() - 30 * 86_400
 	await db.delete(schema.sessions).where(lt(schema.sessions.updatedAt, cutoffSession))
+
+	// Двух суток хватает: Telegram перестаёт ретраить гораздо раньше.
+	const cutoffUpdates = nowSeconds() - 2 * 86_400
+	await db
+		.delete(schema.processedUpdates)
+		.where(lt(schema.processedUpdates.createdAt, cutoffUpdates))
 }
