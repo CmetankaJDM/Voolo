@@ -27,6 +27,7 @@ import {
 	setUserLocale,
 	upsertUser,
 	type Db,
+	type User,
 } from "@voolo/db"
 import {
 	calendarRequestSchema,
@@ -40,7 +41,8 @@ import {
 	type SearchResponse,
 } from "@voolo/shared"
 
-import { readConfig, type Env } from "../env"
+import { readConfig, type Config, type Env } from "../env"
+import { createInvoiceLink } from "../lib/telegram"
 import { createProvider, ProviderError } from "../providers/travelpayouts"
 import {
 	readInitDataHeader,
@@ -55,7 +57,7 @@ const FREE_MAX_WATCHES = 1
 type Session = {
 	db: Db
 	user: InitDataUser
-	row: schema.User
+	row: User
 	isPlus: boolean
 	plusUntil: number | null
 }
@@ -119,7 +121,7 @@ async function route(
 	path: string,
 	request: Request,
 	env: Env,
-	config: ReturnType<typeof readConfig>,
+	config: Config,
 	session: Session,
 ): Promise<Response> {
 	const { db, row } = session
@@ -178,8 +180,7 @@ async function route(
 			}
 		}
 
-		const provider = createProvider(env)
-		const all = await provider.cheapest({
+		const all = await createProvider(env).cheapest({
 			origin: input.data.origin,
 			destination: input.data.destination,
 			departMonth: input.data.departMonth,
@@ -205,8 +206,6 @@ async function route(
 		if (!input.success) return fail("invalid_request", input.error.issues[0]!.message)
 
 		const days = await createProvider(env).calendar(input.data)
-
-		// Календарь на три месяца — фича Plus. Бесплатно только текущий запрошенный.
 		return json({ month: input.data.month, days, isPlus: session.isPlus })
 	}
 
@@ -299,27 +298,16 @@ async function route(
 			status: "pending",
 		})
 
-		const response = await fetch(
-			`https://api.telegram.org/bot${env.BOT_TOKEN}/createInvoiceLink`,
-			{
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({
-					title: `Voolo Plus — ${config.plusDurationDays} дней`,
-					description: `Безлимитный поиск, календарь цен и до ${config.plusMaxWatches} отслеживаний с алертами.`,
-					payload,
-					currency: "XTR",
-					prices: [{ label: "Voolo Plus", amount: config.plusPriceStars }],
-				}),
-			},
-		)
+		const link = await createInvoiceLink(env.BOT_TOKEN, {
+			title: "Voolo Plus",
+			description: `Безлимитный поиск, календарь цен и до ${config.plusMaxWatches} отслеживаний с алертами на ${config.plusDurationDays} дней.`,
+			payload,
+			stars: config.plusPriceStars,
+		})
 
-		const result = (await response.json()) as { ok: boolean; result?: string }
-		if (!result.ok || !result.result) {
-			return fail("internal", "Не удалось создать ссылку на оплату.")
-		}
+		if (!link) return fail("internal", "Не удалось создать ссылку на оплату.")
 
-		return json({ invoiceLink: result.result, stars: config.plusPriceStars })
+		return json({ invoiceLink: link, stars: config.plusPriceStars })
 	}
 
 	return fail("not_found", "Метод не найден.")

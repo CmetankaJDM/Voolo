@@ -7,9 +7,11 @@
  *
  * Снять вебхук: тот же вызов с флагом --delete.
  *
- * allowed_updates задаётся явно. По умолчанию Telegram не шлёт часть типов
- * (например message_reaction), а молчаливо отсутствующие апдейты ищутся часами.
+ * allowed_updates задаётся явно. Значение по умолчанию отличается от «всё», и
+ * молчаливо не приходящий тип апдейта ищется часами.
  */
+
+const API_BASE = "https://api.telegram.org"
 
 const WEBHOOK_PATH = "/telegram/webhook"
 
@@ -25,11 +27,11 @@ async function main(): Promise<void> {
 	const token = process.env.BOT_TOKEN
 	if (!token) throw new Error("BOT_TOKEN не задан")
 
-	const shouldDelete = process.argv.includes("--delete")
-
-	if (shouldDelete) {
-		const result = await call(token, "deleteWebhook", { drop_pending_updates: false })
-		console.log("deleteWebhook:", result)
+	if (process.argv.includes("--delete")) {
+		console.log(
+			"deleteWebhook:",
+			await call(token, "deleteWebhook", { drop_pending_updates: false }),
+		)
 		return
 	}
 
@@ -61,7 +63,9 @@ async function call(
 	method: string,
 	payload: Record<string, unknown>,
 ): Promise<unknown> {
-	const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+	const endpoint = `${API_BASE}/bot${token}/${method}`
+
+	const response = await fetch(endpoint, {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(payload),
