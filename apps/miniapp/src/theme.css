@@ -1,0 +1,356 @@
+/*
+ * Фирменная тёмная тема Voolo.
+ *
+ * Значения совпадают с packages/shared/src/brand.ts — там источник правды для
+ * бота и скриптов, здесь — статическая копия, чтобы первая краска не ждала JS.
+ *
+ * Лайм — только акцент. На больших площадях он выжигает глаза, поэтому
+ * заливка им допустима только для одной главной кнопки на экран.
+ */
+
+:root {
+	--voolo-lime: #a8e82c;
+	--voolo-lime-bright: #c2ff4d;
+	--voolo-lime-dim: #7fb01f;
+	--voolo-lime-soft: rgba(168, 232, 44, 0.12);
+
+	--voolo-bg: #141414;
+	--voolo-surface: #1e1e1e;
+	--voolo-surface-raised: #262626;
+	--voolo-border: #2e2e2e;
+
+	--voolo-text: #f5f5f5;
+	--voolo-text-muted: #8a8a8a;
+	--voolo-text-on-lime: #141414;
+
+	--voolo-warning: #ffb020;
+	--voolo-danger: #ff5c5c;
+
+	--radius-sm: 8px;
+	--radius-md: 14px;
+	--radius-lg: 20px;
+	--radius-pill: 999px;
+
+	--space-xs: 4px;
+	--space-sm: 8px;
+	--space-md: 12px;
+	--space-lg: 16px;
+	--space-xl: 24px;
+	--space-xxl: 32px;
+
+	--tabbar-height: 64px;
+	--voolo-viewport: 100vh;
+
+	color-scheme: dark;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	background: var(--voolo-bg);
+	color: var(--voolo-text);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+		Arial, sans-serif;
+	font-size: 16px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+	/* Горизонтальной прокрутки в Mini App быть не должно никогда. */
+	overflow-x: hidden;
+}
+
+button,
+input,
+select {
+	font: inherit;
+	color: inherit;
+}
+
+/* Клавиатурный фокус виден всегда: Mini App открывают и с десктопа. */
+:focus-visible {
+	outline: 2px solid var(--voolo-lime);
+	outline-offset: 2px;
+}
+
+.app {
+	display: flex;
+	flex-direction: column;
+	min-height: var(--voolo-viewport);
+	padding: 0 var(--space-lg);
+	padding-top: max(var(--space-md), env(safe-area-inset-top));
+	padding-bottom: calc(
+		var(--tabbar-height) + max(var(--space-lg), env(safe-area-inset-bottom))
+	);
+	max-width: 720px;
+	margin: 0 auto;
+	width: 100%;
+}
+
+.app__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-md);
+	padding: var(--space-md) 0 var(--space-lg);
+}
+
+.wordmark {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-sm);
+	font-size: 20px;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	color: var(--voolo-lime);
+}
+
+.badge {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-xs);
+	padding: 4px 10px;
+	border-radius: var(--radius-pill);
+	font-size: 13px;
+	font-weight: 600;
+	background: var(--voolo-lime-soft);
+	color: var(--voolo-lime);
+	border: 1px solid rgba(168, 232, 44, 0.24);
+}
+
+.badge--muted {
+	background: var(--voolo-surface-raised);
+	color: var(--voolo-text-muted);
+	border-color: var(--voolo-border);
+}
+
+/* ── Карточки ─────────────────────────────────────────── */
+
+.card {
+	background: var(--voolo-surface);
+	border: 1px solid var(--voolo-border);
+	border-radius: var(--radius-md);
+	padding: var(--space-lg);
+}
+
+.card + .card {
+	margin-top: var(--space-md);
+}
+
+.card--interactive {
+	display: block;
+	width: 100%;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.card--interactive:hover {
+	border-color: var(--voolo-lime-dim);
+	background: var(--voolo-surface-raised);
+}
+
+.card__row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-md);
+}
+
+.price {
+	font-size: 22px;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	white-space: nowrap;
+}
+
+.price--accent {
+	color: var(--voolo-lime);
+}
+
+.muted {
+	color: var(--voolo-text-muted);
+	font-size: 14px;
+}
+
+.stack {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-md);
+}
+
+.row {
+	display: flex;
+	gap: var(--space-sm);
+	flex-wrap: wrap;
+}
+
+/* ── Поля и кнопки ─────────────────────────────────────── */
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	flex: 1 1 140px;
+}
+
+.field__label {
+	font-size: 13px;
+	color: var(--voolo-text-muted);
+}
+
+.input {
+	min-height: 48px;
+	padding: 0 var(--space-md);
+	background: var(--voolo-surface);
+	border: 1px solid var(--voolo-border);
+	border-radius: var(--radius-sm);
+	width: 100%;
+}
+
+.input:focus {
+	border-color: var(--voolo-lime);
+	outline: none;
+}
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-sm);
+	/* Минимальная тач-цель 44px — ниже палец не попадает. */
+	min-height: 48px;
+	padding: 0 var(--space-lg);
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	background: var(--voolo-surface-raised);
+	color: var(--voolo-text);
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.button--primary {
+	background: var(--voolo-lime);
+	color: var(--voolo-text-on-lime);
+	width: 100%;
+}
+
+.button--primary:active {
+	background: var(--voolo-lime-dim);
+}
+
+.button--ghost {
+	background: transparent;
+	border-color: var(--voolo-border);
+}
+
+.button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.chip {
+	min-height: 44px;
+	padding: 0 var(--space-md);
+	border-radius: var(--radius-pill);
+	border: 1px solid var(--voolo-border);
+	background: var(--voolo-surface);
+	cursor: pointer;
+}
+
+.chip--active {
+	border-color: var(--voolo-lime);
+	background: var(--voolo-lime-soft);
+	color: var(--voolo-lime);
+}
+
+/* ── Нижняя навигация ─────────────────────────────────── */
+
+.tabbar {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: var(--space-xs);
+	padding: var(--space-sm) var(--space-sm)
+		max(var(--space-sm), env(safe-area-inset-bottom));
+	background: rgba(20, 20, 20, 0.92);
+	backdrop-filter: blur(12px);
+	border-top: 1px solid var(--voolo-border);
+}
+
+.tabbar__item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	min-height: 48px;
+	border: none;
+	background: none;
+	border-radius: var(--radius-sm);
+	color: var(--voolo-text-muted);
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.tabbar__item--active {
+	color: var(--voolo-lime);
+	background: var(--voolo-lime-soft);
+}
+
+.tabbar__icon {
+	font-size: 18px;
+	line-height: 1;
+}
+
+/* ── Состояния ────────────────────────────────────────── */
+
+.empty {
+	padding: var(--space-xxl) var(--space-lg);
+	text-align: center;
+	color: var(--voolo-text-muted);
+}
+
+.error {
+	padding: var(--space-md);
+	border-radius: var(--radius-sm);
+	border: 1px solid rgba(255, 92, 92, 0.32);
+	background: rgba(255, 92, 92, 0.1);
+	color: var(--voolo-danger);
+	font-size: 14px;
+}
+
+.skeleton {
+	height: 76px;
+	border-radius: var(--radius-md);
+	background: linear-gradient(
+		90deg,
+		var(--voolo-surface) 0%,
+		var(--voolo-surface-raised) 50%,
+		var(--voolo-surface) 100%
+	);
+	background-size: 200% 100%;
+	animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes shimmer {
+	to {
+		background-position: -200% 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+	}
+}
