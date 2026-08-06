@@ -1,0 +1,40 @@
+# Зависимости
+node_modules/
+.pnpm-store/
+
+# Сборка
+dist/
+build/
+.output/
+*.tsbuildinfo
+
+# Cloudflare
+.wrangler/
+.dev.vars
+wrangler.toml.local
+
+# Окружение — секреты в репозиторий не попадают никогда
+.env
+.env.*
+!.env.example
+
+# Локальная D1
+*.sqlite
+*.sqlite3
+*.db
+
+# Логи
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Редакторы и ОС
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Тесты
+coverage/
+.vitest/
