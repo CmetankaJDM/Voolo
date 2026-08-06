@@ -4,7 +4,7 @@
  * Всё, что трогает базу, живёт здесь. Хендлеры бота не пишут SQL.
  */
 
-import { and, eq, gt, lt, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm"
 import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1"
 
 import * as schema from "./schema"
@@ -20,7 +20,7 @@ export function createDb(d1: D1Database): Db {
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
 
-// ── Дедуп апдейтов ───────────────────────────────────────────────────
+// ── Дедуп апдейтов ────────────────────────────────────────────
 
 /**
  * Забрать апдейт себе. true — обрабатываем первый раз, false — дубль.
@@ -38,7 +38,7 @@ export async function claimUpdate(db: Db, updateId: number): Promise<boolean> {
 	return inserted.length > 0
 }
 
-// ── Пользователи ────────────────────────────────────────────────────
+// ── Пользователи ───────────────────────────────────────────
 
 /**
  * Завести или обновить пользователя. Вызывается на каждом апдейте.
@@ -101,7 +101,15 @@ export async function setHomeIata(
 	await db.update(schema.users).set({ homeIata }).where(eq(schema.users.id, userId))
 }
 
-// ── Сессии ──────────────────────────────────────────────────────────
+export async function setUserCurrency(
+	db: Db,
+	userId: number,
+	currency: string,
+): Promise<void> {
+	await db.update(schema.users).set({ currency }).where(eq(schema.users.id, userId))
+}
+
+// ── Сессии ────────────────────────────────────────────────
 
 /**
  * StorageAdapter для grammY поверх D1.
@@ -146,7 +154,7 @@ export function createD1SessionStorage(db: Db) {
 	}
 }
 
-// ── Доступ и квоты ──────────────────────────────────────────────────
+// ── Доступ и квоты ─────────────────────────────────────────
 
 /** Есть ли активный Plus прямо сейчас. */
 export async function isPremium(db: Db, userId: number): Promise<boolean> {
@@ -164,6 +172,23 @@ export async function isPremium(db: Db, userId: number): Promise<boolean> {
 	return Boolean(row)
 }
 
+/** Когда заканчивается доступ. null — активного доступа нет. */
+export async function premiumUntil(db: Db, userId: number): Promise<number | null> {
+	const [row] = await db
+		.select({ expiresAt: schema.entitlements.expiresAt })
+		.from(schema.entitlements)
+		.where(
+			and(
+				eq(schema.entitlements.userId, userId),
+				gt(schema.entitlements.expiresAt, nowSeconds()),
+			),
+		)
+		.orderBy(desc(schema.entitlements.expiresAt))
+		.limit(1)
+
+	return row?.expiresAt ?? null
+}
+
 /** Выдать доступ. Если активный уже есть — продлеваем от его конца, а не от сейчас. */
 export async function grantAccess(
 	db: Db,
@@ -172,20 +197,9 @@ export async function grantAccess(
 	source: "payment" | "grant" = "payment",
 ): Promise<number> {
 	const current = nowSeconds()
+	const active = await premiumUntil(db, userId)
 
-	const [active] = await db
-		.select({ expiresAt: schema.entitlements.expiresAt })
-		.from(schema.entitlements)
-		.where(
-			and(
-				eq(schema.entitlements.userId, userId),
-				gt(schema.entitlements.expiresAt, current),
-			),
-		)
-		.orderBy(sql`${schema.entitlements.expiresAt} desc`)
-		.limit(1)
-
-	const startsAt = active?.expiresAt ?? current
+	const startsAt = active ?? current
 	const expiresAt = startsAt + days * 86_400
 
 	await db.insert(schema.entitlements).values({
@@ -228,6 +242,208 @@ export async function consumeSearchQuota(
 
 	const used = row?.count ?? 1
 	return { used, limit, allowed: used <= limit }
+}
+
+/** Сколько поисков уже истрачено сегодня. Чтение без списания — для /status и профиля. */
+export async function peekSearchQuota(db: Db, userId: number): Promise<number> {
+	const day = new Date().toISOString().slice(0, 10)
+
+	const [row] = await db
+		.select({ count: schema.searchQuota.count })
+		.from(schema.searchQuota)
+		.where(
+			and(eq(schema.searchQuota.userId, userId), eq(schema.searchQuota.day, day)),
+		)
+		.limit(1)
+
+	return row?.count ?? 0
+}
+
+// ── Избранное ─────────────────────────────────────────────
+
+export async function listFavorites(
+	db: Db,
+	userId: number,
+): Promise<schema.Favorite[]> {
+	return db
+		.select()
+		.from(schema.favorites)
+		.where(eq(schema.favorites.userId, userId))
+		.orderBy(desc(schema.favorites.createdAt))
+}
+
+export async function addFavorite(
+	db: Db,
+	userId: number,
+	origin: string,
+	destination: string,
+): Promise<void> {
+	await db
+		.insert(schema.favorites)
+		.values({ userId, origin, destination })
+		.onConflictDoNothing()
+}
+
+export async function removeFavorite(
+	db: Db,
+	userId: number,
+	id: number,
+): Promise<void> {
+	await db
+		.delete(schema.favorites)
+		.where(and(eq(schema.favorites.userId, userId), eq(schema.favorites.id, id)))
+}
+
+// ── Отслеживание цены ───────────────────────────────────────
+
+export async function listWatches(db: Db, userId: number): Promise<schema.Watch[]> {
+	return db
+		.select()
+		.from(schema.watches)
+		.where(and(eq(schema.watches.userId, userId), eq(schema.watches.isActive, true)))
+		.orderBy(desc(schema.watches.createdAt))
+}
+
+export async function countWatches(db: Db, userId: number): Promise<number> {
+	const [row] = await db
+		.select({ total: sql<number>`count(*)` })
+		.from(schema.watches)
+		.where(and(eq(schema.watches.userId, userId), eq(schema.watches.isActive, true)))
+
+	return Number(row?.total ?? 0)
+}
+
+/**
+ * Создать или реактивировать отслеживание.
+ *
+ * На ON CONFLICT здесь полагаться нельзя: в SQLite NULL в уникальном индексе
+ * не равен сам себе, а depart_month наш обычный NULL («любые даты») — то
+ * есть конфликт просто не сработал бы и плодились бы дубли.
+ */
+export async function createWatch(
+	db: Db,
+	input: {
+		userId: number
+		origin: string
+		destination: string
+		departMonth?: string | null
+		targetPrice?: number | null
+	},
+): Promise<schema.Watch> {
+	const month = input.departMonth ?? null
+
+	const [existing] = await db
+		.select()
+		.from(schema.watches)
+		.where(
+			and(
+				eq(schema.watches.userId, input.userId),
+				eq(schema.watches.origin, input.origin),
+				eq(schema.watches.destination, input.destination),
+				month === null
+					? isNull(schema.watches.departMonth)
+					: eq(schema.watches.departMonth, month),
+			),
+		)
+		.limit(1)
+
+	if (existing) {
+		const [updated] = await db
+			.update(schema.watches)
+			.set({ isActive: true, targetPrice: input.targetPrice ?? existing.targetPrice })
+			.where(eq(schema.watches.id, existing.id))
+			.returning()
+
+		return updated!
+	}
+
+	const [created] = await db
+		.insert(schema.watches)
+		.values({
+			userId: input.userId,
+			origin: input.origin,
+			destination: input.destination,
+			departMonth: month,
+			targetPrice: input.targetPrice ?? null,
+		})
+		.returning()
+
+	return created!
+}
+
+/** Мягкое удаление: история цен по маршруту ещё пригодится. */
+export async function deleteWatch(
+	db: Db,
+	userId: number,
+	id: number,
+): Promise<boolean> {
+	const updated = await db
+		.update(schema.watches)
+		.set({ isActive: false })
+		.where(and(eq(schema.watches.userId, userId), eq(schema.watches.id, id)))
+		.returning({ id: schema.watches.id })
+
+	return updated.length > 0
+}
+
+/**
+ * Активные отслеживания, которые пора проверить.
+ *
+ * limit обязателен: у Worker есть потолок времени, и перебирать всю таблицу
+ * за один запуск крона нельзя. Остаток доедет следующим запуском.
+ */
+export async function listWatchesDue(
+	db: Db,
+	staleSeconds: number,
+	limit: number,
+): Promise<schema.Watch[]> {
+	const cutoff = nowSeconds() - staleSeconds
+
+	return db
+		.select()
+		.from(schema.watches)
+		.where(
+			and(
+				eq(schema.watches.isActive, true),
+				or(
+					isNull(schema.watches.lastCheckedAt),
+					lt(schema.watches.lastCheckedAt, cutoff),
+				),
+			),
+		)
+		.orderBy(asc(schema.watches.lastCheckedAt))
+		.limit(limit)
+}
+
+export async function markWatchChecked(
+	db: Db,
+	id: number,
+	price: number | null,
+	notified: boolean,
+): Promise<void> {
+	const current = nowSeconds()
+
+	await db
+		.update(schema.watches)
+		.set({
+			lastPrice: price,
+			lastCheckedAt: current,
+			...(notified ? { lastNotifiedAt: current } : {}),
+		})
+		.where(eq(schema.watches.id, id))
+}
+
+/** Отключить всё отслеживание пользователя — например, если он заблокировал бота. */
+export async function deactivateUser(db: Db, userId: number): Promise<void> {
+	await db
+		.update(schema.users)
+		.set({ isBlocked: true })
+		.where(eq(schema.users.id, userId))
+
+	await db
+		.update(schema.watches)
+		.set({ isActive: false })
+		.where(eq(schema.watches.userId, userId))
 }
 
 /** Чистка хвостов. Зовётся из крона. */
