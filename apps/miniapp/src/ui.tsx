@@ -76,18 +76,13 @@ export function OfferCard(props: {
 						{transfersLabel(offer.transfers)}
 					</div>
 					{props.subtitle ? <div className="muted">{props.subtitle}</div> : null}
+					{note ? <div className="muted">🕐 {note}</div> : null}
 				</div>
 
 				<div className="price price--accent">
 					{formatPrice(offer.price, offer.currency)}
 				</div>
 			</div>
-
-			{note ? (
-				<div className="muted" style-data="freshness">
-					🕐 {note}
-				</div>
-			) : null}
 
 			<div className="row">
 				<button

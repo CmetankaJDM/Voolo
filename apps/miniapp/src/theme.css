@@ -70,6 +70,10 @@ select {
 	color: inherit;
 }
 
+p {
+	margin: 0 0 var(--space-sm);
+}
+
 /* Клавиатурный фокус виден всегда: Mini App открывают и с десктопа. */
 :focus-visible {
 	outline: 2px solid var(--voolo-lime);
@@ -119,6 +123,7 @@ select {
 	background: var(--voolo-lime-soft);
 	color: var(--voolo-lime);
 	border: 1px solid rgba(168, 232, 44, 0.24);
+	white-space: nowrap;
 }
 
 .badge--muted {
@@ -130,6 +135,9 @@ select {
 /* ── Карточки ─────────────────────────────────────────── */
 
 .card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-md);
 	background: var(--voolo-surface);
 	border: 1px solid var(--voolo-border);
 	border-radius: var(--radius-md);
@@ -138,19 +146,6 @@ select {
 
 .card + .card {
 	margin-top: var(--space-md);
-}
-
-.card--interactive {
-	display: block;
-	width: 100%;
-	text-align: left;
-	cursor: pointer;
-	transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.card--interactive:hover {
-	border-color: var(--voolo-lime-dim);
-	background: var(--voolo-surface-raised);
 }
 
 .card__row {
@@ -182,6 +177,17 @@ select {
 	gap: var(--space-md);
 }
 
+/* Списки используются ради семантики, маркеры браузера здесь лишние. */
+ul.stack,
+ul.stack li {
+	list-style: none;
+}
+
+ul.stack {
+	margin: 0;
+	padding: 0;
+}
+
 .row {
 	display: flex;
 	gap: var(--space-sm);
@@ -205,7 +211,7 @@ select {
 .input {
 	min-height: 48px;
 	padding: 0 var(--space-md);
-	background: var(--voolo-surface);
+	background: var(--voolo-bg);
 	border: 1px solid var(--voolo-border);
 	border-radius: var(--radius-sm);
 	width: 100%;
@@ -252,21 +258,6 @@ select {
 	cursor: not-allowed;
 }
 
-.chip {
-	min-height: 44px;
-	padding: 0 var(--space-md);
-	border-radius: var(--radius-pill);
-	border: 1px solid var(--voolo-border);
-	background: var(--voolo-surface);
-	cursor: pointer;
-}
-
-.chip--active {
-	border-color: var(--voolo-lime);
-	background: var(--voolo-lime-soft);
-	color: var(--voolo-lime);
-}
-
 /* ── Нижняя навигация ─────────────────────────────────── */
 
 .tabbar {
@@ -275,7 +266,7 @@ select {
 	right: 0;
 	bottom: 0;
 	display: grid;
-	grid-template-columns: repeat(4, 1fr);
+	grid-template-columns: repeat(5, 1fr);
 	gap: var(--space-xs);
 	padding: var(--space-sm) var(--space-sm)
 		max(var(--space-sm), env(safe-area-inset-bottom));
@@ -291,11 +282,13 @@ select {
 	justify-content: center;
 	gap: 2px;
 	min-height: 48px;
+	padding: 0 2px;
 	border: none;
 	background: none;
 	border-radius: var(--radius-sm);
 	color: var(--voolo-text-muted);
-	font-size: 11px;
+	font-size: 10px;
+	line-height: 1.2;
 	cursor: pointer;
 }
 

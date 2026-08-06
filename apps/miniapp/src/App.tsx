@@ -5,13 +5,15 @@ import CalendarScreen from "./screens/CalendarScreen"
 import ExploreScreen from "./screens/ExploreScreen"
 import PlusScreen from "./screens/PlusScreen"
 import SearchScreen from "./screens/SearchScreen"
+import WatchlistScreen from "./screens/WatchlistScreen"
 
-type Tab = "search" | "explore" | "calendar" | "plus"
+type Tab = "search" | "explore" | "calendar" | "watch" | "plus"
 
 const TABS: Array<{ id: Tab; label: string; icon: string }> = [
 	{ id: "search", label: "Поиск", icon: "✈️" },
 	{ id: "explore", label: "Куда", icon: "📍" },
 	{ id: "calendar", label: "Календарь", icon: "🗓" },
+	{ id: "watch", label: "Слежу", icon: "📉" },
 	{ id: "plus", label: "Plus", icon: "⭐" },
 ]
 
@@ -21,6 +23,7 @@ export default function App() {
 
 	const isPlus = profile.data?.isPlus ?? false
 	const quota = profile.data?.quota
+	const left = quota ? Math.max(0, (quota.limit ?? 0) - quota.used) : null
 
 	return (
 		<>
@@ -32,10 +35,8 @@ export default function App() {
 
 					{isPlus ? (
 						<span className="badge">⭐ Plus</span>
-					) : quota ? (
-						<span className="badge badge--muted">
-							{Math.max(0, (quota.limit ?? 0) - quota.used)} поиска сегодня
-						</span>
+					) : left !== null ? (
+						<span className="badge badge--muted">Осталось поисков: {left}</span>
 					) : null}
 				</header>
 
@@ -43,11 +44,12 @@ export default function App() {
 					{tab === "search" ? <SearchScreen /> : null}
 					{tab === "explore" ? <ExploreScreen /> : null}
 					{tab === "calendar" ? <CalendarScreen /> : null}
+					{tab === "watch" ? <WatchlistScreen /> : null}
 					{tab === "plus" ? <PlusScreen /> : null}
 				</main>
 			</div>
 
-			<nav className="tabbar">
+			<nav className="tabbar" aria-label="Разделы">
 				{TABS.map((item) => (
 					<button
 						key={item.id}
