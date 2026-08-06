@@ -1,0 +1,15 @@
+# Заголовки Cloudflare Pages.
+#
+# frame-ancestors обязан разрешать домены Telegram: Mini App живёт внутри iframe
+# веб-клиента. X-Frame-Options здесь ставить нельзя — он сломает веб-версию.
+#
+# connect-src оставлен широким: адрес воркера различается между превью и продом.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:; frame-ancestors https://web.telegram.org https://telegram.org https://*.telegram.org
+
+# Хэшированные ассеты Vite неизменяемы — кэшируем навсегда.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
